@@ -7,116 +7,186 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'PixelBoard',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const DrawingPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class DrawingPage extends StatefulWidget {
+  const DrawingPage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<DrawingPage> createState() => _DrawingPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+class _DrawingPageState extends State<DrawingPage> {
+  Color selectedColor = Colors.black;
+  double strokeWidth = 5.0;
+  List<DrawingPoint?> points = [];
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('PixelBoard'),
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      body: Stack(
+        children: [
+          GestureDetector(
+            onPanStart: (details) {
+              setState(() {
+                points.add(
+                  DrawingPoint(
+                    offset: details.localPosition,
+                    paint:
+                        Paint()
+                          ..color = selectedColor
+                          ..isAntiAlias = true
+                          ..strokeWidth = strokeWidth
+                          ..strokeCap = StrokeCap.round,
+                  ),
+                );
+              });
+            },
+            onPanUpdate: (details) {
+              setState(() {
+                points.add(
+                  DrawingPoint(
+                    offset: details.localPosition,
+                    paint:
+                        Paint()
+                          ..color = selectedColor
+                          ..isAntiAlias = true
+                          ..strokeWidth = strokeWidth
+                          ..strokeCap = StrokeCap.round,
+                  ),
+                );
+              });
+            },
+            onPanEnd: (details) {
+              setState(() {
+                points.add(null);
+              });
+            },
+            child: CustomPaint(
+              painter: DrawingPainter(points: points),
+              size: Size.infinite,
             ),
-          ],
-        ),
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              color: Colors.white.withOpacity(0.8),
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 色選択ツールバー
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildColorButton(Colors.black),
+                      _buildColorButton(Colors.red),
+                      _buildColorButton(Colors.blue),
+                      _buildColorButton(Colors.green),
+                      _buildColorButton(Colors.yellow),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // 線の太さスライダー
+                  Row(
+                    children: [
+                      const Icon(Icons.line_weight),
+                      Expanded(
+                        child: Slider(
+                          value: strokeWidth,
+                          min: 1,
+                          max: 20,
+                          onChanged: (value) {
+                            setState(() {
+                              strokeWidth = value;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+        onPressed: () {
+          setState(() {
+            points.clear();
+          });
+        },
+        child: const Icon(Icons.clear),
+      ),
     );
   }
+
+  Widget _buildColorButton(Color color) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedColor = color;
+        });
+      },
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selectedColor == color ? Colors.white : Colors.grey,
+            width: 3,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class DrawingPainter extends CustomPainter {
+  final List<DrawingPoint?> points;
+
+  DrawingPainter({required this.points});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (int i = 0; i < points.length - 1; i++) {
+      if (points[i] != null && points[i + 1] != null) {
+        canvas.drawLine(
+          points[i]!.offset,
+          points[i + 1]!.offset,
+          points[i]!.paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant DrawingPainter oldDelegate) => true;
+}
+
+class DrawingPoint {
+  final Offset offset;
+  final Paint paint;
+
+  DrawingPoint({required this.offset, required this.paint});
 }
