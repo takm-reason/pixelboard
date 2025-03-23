@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:html' as html;
 import 'dart:ui' as ui;
-import '../models/drawing_tool.dart';
 import '../models/drawing_point.dart';
-import '../painters/grid_painter.dart';
+import '../models/drawing_tool.dart';
 import '../painters/drawing_painter.dart';
-import '../utils/shape_generator.dart';
+import '../painters/grid_painter.dart';
 import '../widgets/color_palette.dart';
 import '../widgets/tool_bar.dart';
+import '../utils/shapes/shape_generator_factory.dart';
 
 class DrawingPage extends StatefulWidget {
   const DrawingPage({super.key});
@@ -159,9 +159,9 @@ class _DrawingPageState extends State<DrawingPage> {
   void _updatePreview() {
     if (startPoint != null &&
         currentPoint != null &&
-        selectedTool != DrawingTool.brush &&
-        selectedTool != DrawingTool.fill) {
+        ShapeGeneratorFactory.usesGenerator(selectedTool)) {
       setState(() {
+        final generator = ShapeGeneratorFactory.createGenerator(selectedTool);
         final paint =
             Paint()
               ..color = selectedColor.withOpacity(0.5)
@@ -169,32 +169,13 @@ class _DrawingPageState extends State<DrawingPage> {
               ..strokeWidth = 1
               ..style = PaintingStyle.fill;
 
-        switch (selectedTool) {
-          case DrawingTool.rectangle:
-          case DrawingTool.square:
-            previewPoints = ShapeGenerator.generateRectangle(
-              start: startPoint!,
-              end: currentPoint!,
-              paint: paint,
-              canvasSize: canvasSize,
-              isFilled: isFilled,
-              isSquare: selectedTool == DrawingTool.square,
-            );
-            break;
-          case DrawingTool.circle:
-          case DrawingTool.oval:
-            previewPoints = ShapeGenerator.generateShape(
-              start: startPoint!,
-              end: currentPoint!,
-              paint: paint,
-              canvasSize: canvasSize,
-              isFilled: isFilled,
-              isCircle: selectedTool == DrawingTool.circle,
-            );
-            break;
-          default:
-            previewPoints.clear();
-        }
+        previewPoints = generator.generateShape(
+          start: startPoint!,
+          end: currentPoint!,
+          paint: paint,
+          canvasSize: canvasSize,
+          isFilled: isFilled,
+        );
       });
     } else {
       setState(() {
@@ -203,8 +184,9 @@ class _DrawingPageState extends State<DrawingPage> {
     }
   }
 
-  void _drawShape() {
+  void _addShape() {
     if (startPoint != null && currentPoint != null) {
+      final generator = ShapeGeneratorFactory.createGenerator(selectedTool);
       final paint =
           Paint()
             ..color = selectedColor
@@ -212,34 +194,20 @@ class _DrawingPageState extends State<DrawingPage> {
             ..strokeWidth = 1
             ..style = PaintingStyle.fill;
 
-      List<DrawingPoint?> shapePoints;
-      switch (selectedTool) {
-        case DrawingTool.rectangle:
-        case DrawingTool.square:
-          shapePoints = ShapeGenerator.generateRectangle(
-            start: startPoint!,
-            end: currentPoint!,
-            paint: paint,
-            canvasSize: canvasSize,
-            isFilled: isFilled,
-            isSquare: selectedTool == DrawingTool.square,
-          );
-          break;
-        case DrawingTool.circle:
-        case DrawingTool.oval:
-          shapePoints = ShapeGenerator.generateShape(
-            start: startPoint!,
-            end: currentPoint!,
-            paint: paint,
-            canvasSize: canvasSize,
-            isFilled: isFilled,
-            isCircle: selectedTool == DrawingTool.circle,
-          );
-          break;
-        default:
-          shapePoints = [];
-      }
-      points.addAll(shapePoints);
+      final shapePoints = generator.generateShape(
+        start: startPoint!,
+        end: currentPoint!,
+        paint: paint,
+        canvasSize: canvasSize,
+        isFilled: isFilled,
+      );
+
+      setState(() {
+        points.addAll(shapePoints);
+        previewPoints.clear();
+        startPoint = null;
+        currentPoint = null;
+      });
     }
   }
 
@@ -402,13 +370,9 @@ class _DrawingPageState extends State<DrawingPage> {
                       onPointerUp: (event) {
                         if (startPoint != null &&
                             currentPoint != null &&
-                            selectedTool != DrawingTool.brush &&
-                            selectedTool != DrawingTool.fill) {
+                            ShapeGeneratorFactory.usesGenerator(selectedTool)) {
                           setState(() {
-                            _drawShape();
-                            startPoint = null;
-                            currentPoint = null;
-                            previewPoints.clear();
+                            _addShape();
                           });
                         }
                       },

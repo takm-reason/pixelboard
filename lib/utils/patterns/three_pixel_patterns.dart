@@ -21,15 +21,94 @@ class ThreePixelPatterns extends ShapeGenerator {
       return points;
     }
 
+    // 縦方向の処理
+    if (width <= 3 && height > width) {
+      if (width == 1) {
+        addVerticalLine(points, topLeft, height, paint, canvasSize);
+      } else if (width == 2) {
+        addVertical2pxLine(points, topLeft, height, paint, canvasSize);
+      } else {
+        // width == 3
+        addVertical3pxPattern(points, topLeft, height, paint, canvasSize);
+      }
+      return points;
+    }
+
+    // 横方向の処理
+    if (height <= 3 && width > height) {
+      if (height == 1) {
+        addHorizontalLine(points, topLeft, width, paint, canvasSize);
+      } else if (height == 2) {
+        addHorizontal2pxLine(points, topLeft, width, paint, canvasSize);
+      } else {
+        // height == 3
+        addHorizontal3pxPattern(points, topLeft, width, paint, canvasSize);
+      }
+      return points;
+    }
+
+    // 3x3の場合
     if (width == 3 && height == 3) {
       add3x3Pattern(points, topLeft, paint, canvasSize);
-    } else if (width == 3) {
-      addVertical3pxPattern(points, topLeft, height, paint, canvasSize);
-    } else if (height == 3) {
-      addHorizontal3pxPattern(points, topLeft, width, paint, canvasSize);
     }
 
     return points;
+  }
+
+  // 縦方向の1px線
+  void addVerticalLine(
+    List<DrawingPoint?> points,
+    Offset topLeft,
+    double height,
+    Paint paint,
+    Size canvasSize,
+  ) {
+    for (int y = 0; y < height; y++) {
+      addPoint(points, topLeft.dx, topLeft.dy + y, paint, canvasSize);
+    }
+  }
+
+  // 縦方向の2px線
+  void addVertical2pxLine(
+    List<DrawingPoint?> points,
+    Offset topLeft,
+    double height,
+    Paint paint,
+    Size canvasSize,
+  ) {
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < 2; x++) {
+        addPoint(points, topLeft.dx + x, topLeft.dy + y, paint, canvasSize);
+      }
+    }
+  }
+
+  // 横方向の1px線
+  void addHorizontalLine(
+    List<DrawingPoint?> points,
+    Offset topLeft,
+    double width,
+    Paint paint,
+    Size canvasSize,
+  ) {
+    for (int x = 0; x < width; x++) {
+      addPoint(points, topLeft.dx + x, topLeft.dy, paint, canvasSize);
+    }
+  }
+
+  // 横方向の2px線
+  void addHorizontal2pxLine(
+    List<DrawingPoint?> points,
+    Offset topLeft,
+    double width,
+    Paint paint,
+    Size canvasSize,
+  ) {
+    for (int x = 0; x < width; x++) {
+      for (int y = 0; y < 2; y++) {
+        addPoint(points, topLeft.dx + x, topLeft.dy + y, paint, canvasSize);
+      }
+    }
   }
 
   // 3x3の基本パターン
@@ -39,14 +118,14 @@ class ThreePixelPatterns extends ShapeGenerator {
     Paint paint,
     Size canvasSize,
   ) {
-    // 上段の中央
+    // 上段: □ ■ □
     addPoint(points, topLeft.dx + 1, topLeft.dy, paint, canvasSize);
 
-    // 中段の左右
+    // 中段: ■ □ ■
     addPoint(points, topLeft.dx, topLeft.dy + 1, paint, canvasSize);
     addPoint(points, topLeft.dx + 2, topLeft.dy + 1, paint, canvasSize);
 
-    // 下段の中央
+    // 下段: □ ■ □
     addPoint(points, topLeft.dx + 1, topLeft.dy + 2, paint, canvasSize);
   }
 
@@ -58,22 +137,16 @@ class ThreePixelPatterns extends ShapeGenerator {
     Paint paint,
     Size canvasSize,
   ) {
-    // 上端
+    // 上端: □ ■ □
     addPoint(points, topLeft.dx + 1, topLeft.dy, paint, canvasSize);
 
-    // 中間部分
+    // 中間部分: ■ □ ■ (繰り返し)
     for (int y = 1; y < height - 1; y++) {
-      if (y % 2 == 0) {
-        // 中央のドット
-        addPoint(points, topLeft.dx + 1, topLeft.dy + y, paint, canvasSize);
-      } else {
-        // 左右のドット
-        addPoint(points, topLeft.dx, topLeft.dy + y, paint, canvasSize);
-        addPoint(points, topLeft.dx + 2, topLeft.dy + y, paint, canvasSize);
-      }
+      addPoint(points, topLeft.dx, topLeft.dy + y, paint, canvasSize);
+      addPoint(points, topLeft.dx + 2, topLeft.dy + y, paint, canvasSize);
     }
 
-    // 下端
+    // 下端: □ ■ □
     addPoint(
       points,
       topLeft.dx + 1,
@@ -91,25 +164,20 @@ class ThreePixelPatterns extends ShapeGenerator {
     Paint paint,
     Size canvasSize,
   ) {
-    // 上段の中央ドット
-    for (int x = 0; x < width; x++) {
-      if (x % 2 == 1) {
-        addPoint(points, topLeft.dx + x, topLeft.dy, paint, canvasSize);
-      }
+    // 上段: □ ■ ■ ■ ■ ■ □
+    addPoint(points, topLeft.dx + 1, topLeft.dy, paint, canvasSize);
+    for (int x = 2; x < width - 1; x++) {
+      addPoint(points, topLeft.dx + x, topLeft.dy, paint, canvasSize);
     }
 
-    // 中段の両端ドット
-    for (int x = 0; x < width; x++) {
-      if (x % 2 == 0) {
-        addPoint(points, topLeft.dx + x, topLeft.dy + 1, paint, canvasSize);
-      }
-    }
+    // 中段: ■ □ □ □ □ □ ■
+    addPoint(points, topLeft.dx, topLeft.dy + 1, paint, canvasSize);
+    addPoint(points, topLeft.dx + width - 1, topLeft.dy + 1, paint, canvasSize);
 
-    // 下段の中央ドット
-    for (int x = 0; x < width; x++) {
-      if (x % 2 == 1) {
-        addPoint(points, topLeft.dx + x, topLeft.dy + 2, paint, canvasSize);
-      }
+    // 下段: □ ■ ■ ■ ■ ■ □
+    addPoint(points, topLeft.dx + 1, topLeft.dy + 2, paint, canvasSize);
+    for (int x = 2; x < width - 1; x++) {
+      addPoint(points, topLeft.dx + x, topLeft.dy + 2, paint, canvasSize);
     }
   }
 }
