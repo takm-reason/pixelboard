@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+// dart:htmlはWebプラットフォームでのみ使用可能
+import 'dart:html' as html;
+import 'dart:ui' as ui;
+import 'dart:typed_data';
 
 void main() {
   runApp(const MyApp());
@@ -85,6 +89,50 @@ class _DrawingPageState extends State<DrawingPage> {
     );
   }
 
+  Future<void> _exportToPNG() async {
+    // 描画用のキャンバスを作成
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final paint =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
+
+    // 背景を白で塗りつぶし
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
+      paint,
+    );
+
+    // ドット単位で描画
+    for (int i = 0; i < points.length; i++) {
+      if (points[i] != null) {
+        canvas.drawRect(
+          Rect.fromLTWH(points[i]!.offset.dx, points[i]!.offset.dy, 1, 1),
+          points[i]!.paint,
+        );
+      }
+    }
+
+    // 描画内容をイメージに変換
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(
+      canvasSize.width.toInt(),
+      canvasSize.height.toInt(),
+    );
+    final pngBytes = await img.toByteData(format: ui.ImageByteFormat.png);
+
+    if (pngBytes != null) {
+      final blob = html.Blob([pngBytes.buffer.asUint8List()], 'image/png');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor =
+          html.AnchorElement(href: url)
+            ..setAttribute('download', 'pixel_art.png')
+            ..click();
+      html.Url.revokeObjectUrl(url);
+    }
+  }
+
   Offset? _getCanvasOffset(Offset globalPosition) {
     final RenderBox? renderBox =
         _canvasKey.currentContext?.findRenderObject() as RenderBox?;
@@ -124,6 +172,11 @@ class _DrawingPageState extends State<DrawingPage> {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: _showSizeDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: _exportToPNG,
+            tooltip: 'PNGでエクスポート',
           ),
         ],
       ),
