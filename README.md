@@ -1,16 +1,70 @@
-# pixelboard
+# PixelBoard
 
-A new Flutter project.
+Flutterで作成したピクセルアート描画アプリケーションです。
 
-## Getting Started
+## 機能
 
-This project is a starting point for a Flutter application.
+- ピクセル単位の正確な描画
+- 様々な図形ツール（長方形、正方形、円、楕円）
+- グリッド表示
+- カラーパレット
+- PNG形式でのエクスポート
+- キャンバスサイズの調整
+- 塗りつぶしツール
+- ブラシサイズの調整
 
-A few resources to get you started if this is your first Flutter project:
+## ツール
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- ブラシ：フリーハンドで描画
+- 塗りつぶし：閉じた領域を塗りつぶし
+- 長方形：長方形を描画
+- 正方形：正方形を描画
+- 円：円を描画
+- 楕円：楕円を描画
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 特殊な描画パターン
+
+図形ツールは、小さいサイズの場合に特殊なパターンで描画されます：
+
+- 幅/高さが1px：シンプルな直線
+- 幅/高さが2px：2本の平行な直線
+- 幅/高さが3px：ドットを使用した円のようなパターン
+
+## プロジェクト構造
+
+```
+lib/
+├── models/              # データモデル
+│   ├── drawing_point.dart
+│   └── drawing_tool.dart
+├── painters/            # 描画処理
+│   ├── drawing_painter.dart
+│   └── grid_painter.dart
+├── screens/            # 画面
+│   └── drawing_page.dart
+├── utils/             # ユーティリティ
+│   ├── patterns/      # パターン生成
+│   │   └── three_pixel_patterns.dart
+│   └── shapes/        # 図形生成
+│       ├── base_shape_generator.dart
+│       ├── circle_shape_base.dart
+│       ├── circle_generator.dart
+│       ├── oval_generator.dart
+│       ├── rectangle_generator.dart
+│       └── shape_generator_factory.dart
+└── widgets/           # UI部品
+    ├── color_palette.dart
+    └── tool_bar.dart
+```
+
+## ライセンス
+
+MIT License
+
+Copyright (c) 2025 PixelBoard Contributors
+
+以下に定める条件に従い、本ソフトウェアおよび関連文書のファイル（以下「ソフトウェア」）の複製を取得するすべての人に対し、ソフトウェアを無制限に扱うことを無償で許可します。これには、ソフトウェアの複製を使用、複写、変更、結合、掲載、頒布、サブライセンス、および/または販売する権利、およびソフトウェアを提供する相手に同じことを許可する権利も無制限に含まれます。
+
+上記の著作権表示および本許諾表示を、ソフトウェアのすべての複製または重要な部分に記載するものとします。
+
+ソフトウェアは「現状のまま」で、明示であるか暗黙であるかを問わず、何らの保証もなく提供されます。ここでいう保証とは、商品性、特定の目的への適合性、および権利非侵害についての保証も含みますが、それに限定されるものではありません。作者または著作権者は、契約行為、不法行為、またはそれ以外であろうと、ソフトウェアに起因または関連し、あるいはソフトウェアの使用またはその他の扱いによって生じる一切の請求、損害、その他の義務について何らの責任も負わないものとします。
