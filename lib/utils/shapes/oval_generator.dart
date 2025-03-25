@@ -4,8 +4,6 @@ import '../../models/drawing_point.dart';
 import 'base_shape_drawer.dart';
 
 class OvalGenerator extends BaseShapeDrawer {
-  bool isDebugMode = false;
-
   @override
   List<DrawingPoint?> drawFromDrag({
     required Offset start,
@@ -40,10 +38,6 @@ class OvalGenerator extends BaseShapeDrawer {
     required Size canvasSize,
     required bool isFilled,
   }) {
-    if (isDebugMode) {
-      return _generateFilledRectangle(start, end, paint, canvasSize);
-    }
-
     final width = (end.dx - start.dx).abs().floor() + 1;
     final height = (end.dy - start.dy).abs().floor() + 1;
     final strokeThickness = math.min(width, height);
@@ -51,17 +45,35 @@ class OvalGenerator extends BaseShapeDrawer {
     if (strokeThickness <= 2) {
       // 2ピクセル幅以下の矩形は塗りつぶし
       return _generateFilledRectangle(start, end, paint, canvasSize);
-    } else if (strokeThickness <= 3) {
-      // 3ピクセル幅の楕円を描画
-      return _generateTripleThickShape(start, end, paint, canvasSize, isFilled);
+    } else if (strokeThickness <= 4) {
+      // 3-4ピクセル幅の楕円を描画
+      return _generateSmallOvalShape(start, end, paint, canvasSize, isFilled);
     } else {
       // 通常サイズの楕円を描画
       return _generateNormalOvalShape(start, end, paint, canvasSize, isFilled);
     }
   }
 
-  /// 3ピクセル幅の楕円を描画
-  List<DrawingPoint?> _generateTripleThickShape(
+  /// 指定された矩形領域を全て塗りつぶす
+  List<DrawingPoint?> _generateFilledRectangle(
+    Offset start,
+    Offset end,
+    Paint paint,
+    Size canvasSize,
+  ) {
+    final points = <DrawingPoint?>[];
+
+    for (int x = start.dx.toInt(); x <= end.dx.toInt(); x++) {
+      for (int y = start.dy.toInt(); y <= end.dy.toInt(); y++) {
+        addPoint(points, x.toDouble(), y.toDouble(), paint, canvasSize);
+      }
+    }
+
+    return points;
+  }
+
+  /// 3-4ピクセル幅の楕円を描画
+  List<DrawingPoint?> _generateSmallOvalShape(
     Offset start,
     Offset end,
     Paint paint,
@@ -70,45 +82,40 @@ class OvalGenerator extends BaseShapeDrawer {
   ) {
     final points = <DrawingPoint?>[];
 
-    final minX = math.min(start.dx, end.dx).floor();
-    final maxX = math.max(start.dx, end.dx).floor();
-    final minY = math.min(start.dy, end.dy).floor();
-    final maxY = math.max(start.dy, end.dy).floor();
+    final dx = (end.dx - start.dx).abs();
+    final dy = (end.dy - start.dy).abs();
 
-    final isHorizontal = (maxX - minX) > (maxY - minY);
-    final center = isHorizontal ? (minY + maxY) ~/ 2 : (minX + maxX) ~/ 2;
-
-    // 直線を描画
-    for (
-      var i = (isHorizontal ? minX : minY) + 1;
-      i < (isHorizontal ? maxX : maxY);
-      i++
-    ) {
-      final pos1 =
-          isHorizontal
-              ? Offset(i.toDouble(), (center - 1).toDouble())
-              : Offset((center - 1).toDouble(), i.toDouble());
-      final pos2 =
-          isHorizontal
-              ? Offset(i.toDouble(), (center + 1).toDouble())
-              : Offset((center + 1).toDouble(), i.toDouble());
-
-      addPoint(points, pos1.dx, pos1.dy, paint, canvasSize);
-      addPoint(points, pos2.dx, pos2.dy, paint, canvasSize);
+    for (var i = 1; i < dx; i++) {
+      final x = start.dx + i;
+      final y = start.dy;
+      addPoint(points, x, y, paint, canvasSize);
     }
 
-    // 端点を描画
-    final endPos1 =
-        isHorizontal
-            ? Offset(minX.toDouble(), center.toDouble())
-            : Offset(center.toDouble(), minY.toDouble());
-    final endPos2 =
-        isHorizontal
-            ? Offset(maxX.toDouble(), center.toDouble())
-            : Offset(center.toDouble(), maxY.toDouble());
+    for (var i = 1; i < dx; i++) {
+      final x = start.dx + i;
+      final y = end.dy;
+      addPoint(points, x, y, paint, canvasSize);
+    }
 
-    addPoint(points, endPos1.dx, endPos1.dy, paint, canvasSize);
-    addPoint(points, endPos2.dx, endPos2.dy, paint, canvasSize);
+    for (var i = 1; i < dy; i++) {
+      final x = start.dx;
+      final y = start.dy + i;
+      addPoint(points, x, y, paint, canvasSize);
+    }
+
+    for (var i = 1; i < dy; i++) {
+      final x = end.dx;
+      final y = start.dy + i;
+      addPoint(points, x, y, paint, canvasSize);
+    }
+
+    if (isFilled) {
+      for (int x = start.dx.toInt() + 1; x < end.dx.toInt(); x++) {
+        for (int y = start.dy.toInt() + 1; y < end.dy.toInt(); y++) {
+          addPoint(points, x.toDouble(), y.toDouble(), paint, canvasSize);
+        }
+      }
+    }
 
     return points;
   }
@@ -157,29 +164,6 @@ class OvalGenerator extends BaseShapeDrawer {
             addPoint(points, x.toDouble(), y.toDouble(), paint, canvasSize);
           }
         }
-      }
-    }
-
-    return points;
-  }
-
-  /// 指定された矩形領域を全て塗りつぶす
-  List<DrawingPoint?> _generateFilledRectangle(
-    Offset start,
-    Offset end,
-    Paint paint,
-    Size canvasSize,
-  ) {
-    final points = <DrawingPoint?>[];
-
-    final left = math.min(start.dx, end.dx).floor();
-    final right = math.max(start.dx, end.dx).floor();
-    final top = math.min(start.dy, end.dy).floor();
-    final bottom = math.max(start.dy, end.dy).floor();
-
-    for (int x = left; x <= right; x++) {
-      for (int y = top; y <= bottom; y++) {
-        addPoint(points, x.toDouble(), y.toDouble(), paint, canvasSize);
       }
     }
 
