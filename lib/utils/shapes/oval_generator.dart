@@ -240,15 +240,20 @@ class OvalGenerator extends BaseShapeDrawer {
     Offset start,
     Offset end,
     Paint paint,
-    Size canvasSize,
-  ) {
+    Size canvasSize, {
+    bool shouldDrawStart = true,
+    bool shouldDrawEnd = true,
+  }) {
     final points = <DrawingPoint?>[];
     Offset current = start;
 
     while ((current.dx.round() != end.dx.round()) ||
         (current.dy.round() != end.dy.round())) {
-      addPoint(points, current.dx, current.dy, paint, canvasSize);
-
+      if (shouldDrawStart ||
+          current.dx.round() != start.dx.round() ||
+          current.dy.round() != start.dy.round()) {
+        addPoint(points, current.dx, current.dy, paint, canvasSize);
+      }
       final candidates = generateDirectionalOffsets(from: current, to: end);
       final next = findClosestPointOnEllipse(
         center: center,
@@ -261,7 +266,9 @@ class OvalGenerator extends BaseShapeDrawer {
     }
 
     // 最終点も追加
-    addPoint(points, end.dx, end.dy, paint, canvasSize);
+    if (shouldDrawEnd) {
+      addPoint(points, end.dx, end.dy, paint, canvasSize);
+    }
 
     return points;
   }
@@ -327,7 +334,31 @@ class OvalGenerator extends BaseShapeDrawer {
               ),
             ];
 
-    for (final quarter in quarters) {
+    for (final (index, quarter) in quarters.indexed) {
+      // 同じstartPointを持つquarterの数をカウント
+      final sameStartPointCount =
+          quarters
+              .where(
+                (q) =>
+                    q.startPoint.dx == quarter.startPoint.dx &&
+                    q.startPoint.dy == quarter.startPoint.dy,
+              )
+              .length;
+
+      final sameEndPointCount =
+          quarters
+              .where(
+                (q) =>
+                    q.endPoint.dx == quarter.endPoint.dx &&
+                    q.endPoint.dy == quarter.endPoint.dy,
+              )
+              .length;
+
+      final shouldDrawStart =
+          (index == 0 || index == 2) || sameStartPointCount == 1;
+      final shouldDrawEnd =
+          (index == 0 || index == 2) || sameEndPointCount == 1;
+
       points.addAll(
         _generateQuarterOval(
           quarter.center,
@@ -335,6 +366,8 @@ class OvalGenerator extends BaseShapeDrawer {
           quarter.endPoint,
           paint,
           canvasSize,
+          shouldDrawStart: shouldDrawStart,
+          shouldDrawEnd: shouldDrawEnd,
         ),
       );
     }
