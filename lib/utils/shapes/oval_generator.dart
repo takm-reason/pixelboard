@@ -41,20 +41,40 @@ class OvalGenerator extends BaseShapeDrawer {
     final width = (end.dx - start.dx).abs().floor() + 1;
     final height = (end.dy - start.dy).abs().floor() + 1;
     final strokeThickness = math.min(width, height);
+    final leftTop = Offset(
+      math.min(start.dx, end.dx),
+      math.min(start.dy, end.dy),
+    );
+    final rightBottom = Offset(
+      math.max(start.dx, end.dx),
+      math.max(start.dy, end.dy),
+    );
 
     if (strokeThickness <= 2) {
       // 2ピクセル幅以下の矩形は塗りつぶし
-      return _generateFilledRectangle(start, end, paint, canvasSize);
+      return _generateFilledRectangle(leftTop, rightBottom, paint, canvasSize);
     } else if (strokeThickness <= 4) {
-      //
-      return _generateSmallOvalShape(start, end, paint, canvasSize, isFilled);
+      // 3-4ピクセル幅の楕円を描画
+      return _generateSmallOvalShape(
+        leftTop,
+        rightBottom,
+        paint,
+        canvasSize,
+        isFilled,
+      );
     } else {
       // 通常サイズの楕円を描画
-      return _generateNormalOvalShape(start, end, paint, canvasSize, isFilled);
+      return _generateNormalOvalShape(
+        leftTop,
+        rightBottom,
+        paint,
+        canvasSize,
+        isFilled,
+      );
     }
   }
 
-  /// 指定された矩形領域を全て塗りつぶす
+  // 指定された矩形領域を全て塗りつぶす
   List<DrawingPoint?> _generateFilledRectangle(
     Offset start,
     Offset end,
@@ -72,7 +92,7 @@ class OvalGenerator extends BaseShapeDrawer {
     return points;
   }
 
-  /// 3-4ピクセル幅の楕円を描画
+  // 3-4ピクセル幅の楕円を描画
   List<DrawingPoint?> _generateSmallOvalShape(
     Offset start,
     Offset end,
@@ -120,7 +140,137 @@ class OvalGenerator extends BaseShapeDrawer {
     return points;
   }
 
-  /// 通常サイズの楕円を描画
+  // 開始点側（左上）の中心点を取得（端数切り捨て）
+  Offset _getStartCenterPoint(Offset start, Offset end) {
+    // X軸の中点を計算（左側）
+    final centerX =
+        (math.min(start.dx, end.dx) + math.max(start.dx, end.dx)) / 2;
+
+    // Y軸の中点を計算
+    final centerY =
+        (math.min(start.dy, end.dy) + math.max(start.dy, end.dy)) / 2;
+
+    // 座標は常に切り捨て
+    final adjustedX = centerX.floor().toDouble();
+    final adjustedY = centerY.floor().toDouble();
+
+    return Offset(adjustedX, adjustedY);
+  }
+
+  // 終了点側（右下）の中心点を取得（端数切り上げ）
+  Offset _getEndCenterPoint(Offset start, Offset end) {
+    // X軸の中点を計算（右側）
+    final centerX =
+        (math.min(start.dx, end.dx) + math.max(start.dx, end.dx)) / 2;
+
+    // Y軸の中点を計算
+    final centerY =
+        (math.min(start.dy, end.dy) + math.max(start.dy, end.dy)) / 2;
+
+    // 座標は常に切り上げ
+    final adjustedX = centerX.ceil().toDouble();
+    final adjustedY = centerY.ceil().toDouble();
+
+    return Offset(adjustedX, adjustedY);
+  }
+
+  List<Offset> generateDirectionalOffsets({
+    required Offset from,
+    required Offset to,
+  }) {
+    final dx = to.dx - from.dx;
+    final dy = to.dy - from.dy;
+
+    if (dx == 0 && dy == 0) {
+      return []; // 同じ位置
+    }
+
+    final stepX = dx == 0 ? 0 : (dx > 0 ? 1 : -1);
+    final stepY = dy == 0 ? 0 : (dy > 0 ? 1 : -1);
+
+    // どちらか一方だけが異なる場合（水平または垂直）
+    if (dx == 0 || dy == 0) {
+      return [Offset(from.dx + stepX, from.dy + stepY)];
+    }
+
+    // 斜めの場合 → 3方向に進める
+    return [
+      Offset(from.dx + stepX, from.dy), // 横
+      Offset(from.dx, from.dy + stepY), // 縦
+      Offset(from.dx + stepX, from.dy + stepY), // 斜め
+    ];
+  }
+
+  /// 候補座標の中から、楕円の境界に最も近い点を返す
+  Offset findClosestPointOnEllipse({
+    required Offset center,
+    required Offset start,
+    required Offset end,
+    required List<Offset> candidates,
+  }) {
+    final a = (end.dx - start.dx).abs();
+    final b = (end.dy - start.dy).abs();
+    if (a == 0 || b == 0) return center; // 楕円にならない場合
+
+    final a2 = a * a;
+    final b2 = b * b;
+
+    Offset? closest;
+    double minError = double.infinity;
+
+    for (final p in candidates) {
+      final dx = p.dx - center.dx;
+      final dy = p.dy - center.dy;
+      final value = (dx * dx) / a2 + (dy * dy) / b2;
+      final error = (value - 1.0).abs(); // 楕円からの誤差
+
+      if (error < minError) {
+        minError = error;
+        closest = p;
+      }
+    }
+
+    return closest ?? center;
+  }
+
+  // 楕円の4分の1を描画
+  List<DrawingPoint?> _generateQuarterOval(
+    Offset center,
+    Offset start,
+    Offset end,
+    Paint paint,
+    Size canvasSize,
+  ) {
+    final points = <DrawingPoint?>[];
+    Offset current = start;
+
+    while ((current.dx.round() != end.dx.round()) ||
+        (current.dy.round() != end.dy.round())) {
+      addPoint(points, current.dx, current.dy, paint, canvasSize);
+
+      final candidates = generateDirectionalOffsets(from: current, to: end);
+      final next = findClosestPointOnEllipse(
+        center: center,
+        start: start,
+        end: end,
+        candidates: candidates,
+      );
+
+      if (next == current) {
+        // 進行不能な場合ループ終了（無限ループ防止）
+        break;
+      }
+
+      current = next;
+    }
+
+    // 最終点も追加
+    addPoint(points, end.dx, end.dy, paint, canvasSize);
+
+    return points;
+  }
+
+  // 通常サイズの楕円を描画
   List<DrawingPoint?> _generateNormalOvalShape(
     Offset start,
     Offset end,
@@ -130,162 +280,53 @@ class OvalGenerator extends BaseShapeDrawer {
   ) {
     final points = <DrawingPoint?>[];
 
-    final radiusX = (end.dx - start.dx).abs() / 2;
-    final radiusY = (end.dy - start.dy).abs() / 2;
-    final center = Offset((start.dx + end.dx) / 2, (start.dy + end.dy) / 2);
+    final center = Offset(
+      (start.dx + end.dx) / 2,
+      (start.dy + end.dy) / 2,
+    ); // 切り捨て、切り上げなし
+    final centerStart = _getStartCenterPoint(start, end); // 切り捨て
+    final centerEnd = _getEndCenterPoint(start, end); // 切り上げ
 
-    if (isFilled) {
-      return _generateFilledOval(center, radiusX, radiusY, paint, canvasSize);
-    }
-
-    // 楕円の輪郭を描画
-    // スタート位置を設定
-    final firstX = start.dx.floor();
-    final firstY = ((start.dy + end.dy) / 2).floor();
-    var currentX = firstX;
-    var currentY = firstY;
-
-    // 円の中心座標（doubleのまま）
-    final centerX = (start.dx + end.dx) / 2;
-    final centerY = (start.dy + end.dy) / 2;
-
-    while (true) {
-      addPoint(
-        points,
-        currentX.toDouble(),
-        currentY.toDouble(),
+    points.addAll(
+      _generateQuarterOval(
+        Offset(centerEnd.dx, centerStart.dy),
+        Offset(centerEnd.dx, start.dy),
+        Offset(end.dx, centerStart.dy),
         paint,
         canvasSize,
-      );
-
-      // 次の候補点を評価
-      var bestDistance = double.infinity;
-      var nextX = currentX;
-      var nextY = currentY;
-
-      // 現在の位置に応じて候補方向を決定
-      final List<List<int>> directions;
-      if (currentY > centerY) {
-        // 中心より下にいる場合
-        if (currentX > centerX) {
-          // 右下にいる場合: 左、左下、下
-          directions = [
-            [-1, 0], // ←
-            [-1, 1], // ↙
-            [0, 1], // ↓
-          ];
-        } else {
-          // 左下にいる場合: 左、左上、上
-          directions = [
-            [-1, 0], // ←
-            [-1, -1], // ↖
-            [0, -1], // ↑
-          ];
-        }
-      } else {
-        // 中心より上にいる場合
-        if (currentX < centerX) {
-          // 左上にいる場合: 右、右上、上
-          directions = [
-            [1, 0], // →
-            [1, -1], // ↗
-            [0, -1], // ↑
-          ];
-        } else {
-          // 右上にいる場合: 右、右下、下
-          directions = [
-            [1, 0], // →
-            [1, 1], // ↘
-            [0, 1], // ↓
-          ];
-        }
-      }
-
-      // スタート位置が候補に含まれるかチェック
-      var containsStart = false;
-
-      for (final dir in directions) {
-        final newX = currentX + dir[0];
-        final newY = currentY + dir[1];
-
-        // スタート位置かどうかチェック
-        if (newX == firstX && newY == firstY) {
-          containsStart = true;
-          continue;
-        }
-
-        // キャンバスの範囲内かチェック
-        if (newX < 0 ||
-            newX >= canvasSize.width ||
-            newY < 0 ||
-            newY >= canvasSize.height) {
-          continue;
-        }
-
-        final dx = newX - centerX;
-        final dy = newY - centerY;
-        final normalizedX = dx / radiusX;
-        final normalizedY = dy / radiusY;
-        final distance =
-            (math.sqrt(normalizedX * normalizedX + normalizedY * normalizedY) -
-                    1.0)
-                .abs();
-
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          nextX = newX;
-          nextY = newY;
-        }
-      }
-
-      // スタート位置が候補に含まれていた場合は終了
-      if (containsStart) {
-        break;
-      }
-
-      currentX = nextX;
-      currentY = nextY;
-    }
-
-    return points;
-  }
-
-  /// 塗りつぶされた楕円を生成
-  List<DrawingPoint?> _generateFilledOval(
-    Offset center,
-    double radiusX,
-    double radiusY,
-    Paint paint,
-    Size canvasSize,
-  ) {
-    final points = <DrawingPoint?>[];
-
-    final boundLeft = math.max(0, (center.dx - radiusX).floor());
-    final boundRight = math.min(
-      canvasSize.width.floor() - 1,
-      (center.dx + radiusX).floor(),
+      ),
     );
-    final boundTop = math.max(0, (center.dy - radiusY).floor());
-    final boundBottom = math.min(
-      canvasSize.height.floor() - 1,
-      (center.dy + radiusY).floor(),
+    points.addAll(
+      _generateQuarterOval(
+        Offset(centerEnd.dx, centerEnd.dy),
+        Offset(end.dx, centerEnd.dy),
+        Offset(centerEnd.dx, end.dy),
+        paint,
+        canvasSize,
+      ),
+    );
+    points.addAll(
+      _generateQuarterOval(
+        Offset(centerStart.dx, centerEnd.dy),
+        Offset(centerStart.dx, end.dy),
+        Offset(start.dx, centerEnd.dy),
+        paint,
+        canvasSize,
+      ),
+    );
+    points.addAll(
+      _generateQuarterOval(
+        Offset(centerStart.dx, centerStart.dy),
+        Offset(start.dx, centerStart.dy),
+        Offset(centerStart.dx, start.dy),
+        paint,
+        canvasSize,
+      ),
     );
 
-    for (int x = boundLeft; x <= boundRight; x++) {
-      for (int y = boundTop; y <= boundBottom; y++) {
-        final dx = x - center.dx;
-        final dy = y - center.dy;
-        final normalizedX = dx / radiusX;
-        final normalizedY = dy / radiusY;
-        final distance = math.sqrt(
-          normalizedX * normalizedX + normalizedY * normalizedY,
-        );
-
-        if (distance <= 1.0) {
-          addPoint(points, x.toDouble(), y.toDouble(), paint, canvasSize);
-        }
-      }
-    }
+    // ここは後で消す
+    addPoint(points, centerStart.dx, centerStart.dy, paint, canvasSize);
+    addPoint(points, centerEnd.dx, centerEnd.dy, paint, canvasSize);
 
     return points;
   }
