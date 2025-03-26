@@ -181,23 +181,19 @@ class OvalGenerator extends BaseShapeDrawer {
     final dx = to.dx - from.dx;
     final dy = to.dy - from.dy;
 
-    if (dx == 0 && dy == 0) {
-      return []; // 同じ位置
-    }
-
     final stepX = dx == 0 ? 0 : (dx > 0 ? 1 : -1);
     final stepY = dy == 0 ? 0 : (dy > 0 ? 1 : -1);
 
-    // どちらか一方だけが異なる場合（水平または垂直）
+    // 横か縦の場合、斜めには進まない
     if (dx == 0 || dy == 0) {
       return [Offset(from.dx + stepX, from.dy + stepY)];
     }
 
-    // 斜めの場合 → 3方向に進める
+    // 斜めの場合、横、縦、斜めの3方向に進む
     return [
-      Offset(from.dx + stepX, from.dy), // 横
-      Offset(from.dx, from.dy + stepY), // 縦
-      Offset(from.dx + stepX, from.dy + stepY), // 斜め
+      Offset(from.dx + stepX, from.dy),
+      Offset(from.dx, from.dy + stepY),
+      Offset(from.dx + stepX, from.dy + stepY),
     ];
   }
 
@@ -210,7 +206,6 @@ class OvalGenerator extends BaseShapeDrawer {
   }) {
     final a = (end.dx - start.dx).abs();
     final b = (end.dy - start.dy).abs();
-    if (a == 0 || b == 0) return center; // 楕円にならない場合
 
     final a2 = a * a;
     final b2 = b * b;
@@ -222,7 +217,7 @@ class OvalGenerator extends BaseShapeDrawer {
       final dx = p.dx - center.dx;
       final dy = p.dy - center.dy;
       final value = (dx * dx) / a2 + (dy * dy) / b2;
-      final error = (value - 1.0).abs(); // 楕円からの誤差
+      final error = (value - 1.0).abs();
 
       if (error < minError) {
         minError = error;
@@ -233,7 +228,13 @@ class OvalGenerator extends BaseShapeDrawer {
     return closest ?? center;
   }
 
-  // 楕円の4分の1を描画
+  /// 楕円の4分の1の部分を描画する
+  /// [center] 中心点
+  /// [start] 開始点
+  /// [end] 終了点
+  /// [paint] 描画に使用するPaint
+  /// [canvasSize] キャンバスサイズ
+  /// Returns: 描画点のリスト
   List<DrawingPoint?> _generateQuarterOval(
     Offset center,
     Offset start,
@@ -256,11 +257,6 @@ class OvalGenerator extends BaseShapeDrawer {
         candidates: candidates,
       );
 
-      if (next == current) {
-        // 進行不能な場合ループ終了（無限ループ防止）
-        break;
-      }
-
       current = next;
     }
 
@@ -279,83 +275,64 @@ class OvalGenerator extends BaseShapeDrawer {
     bool isFilled,
   ) {
     final points = <DrawingPoint?>[];
+    final centerStart = _getStartCenterPoint(start, end);
+    final centerEnd = _getEndCenterPoint(start, end);
 
-    final centerStart = _getStartCenterPoint(start, end); // 切り捨て
-    final centerEnd = _getEndCenterPoint(start, end); // 切り上げ
-
-    // 縦長かどうかを判定
     final isVertical = (end.dy - start.dy).abs() > (end.dx - start.dx).abs();
 
-    if (isVertical) {
+    final quarters =
+        isVertical
+            ? [
+              (
+                center: Offset(centerEnd.dx, centerStart.dy),
+                startPoint: Offset(end.dx, centerStart.dy),
+                endPoint: Offset(centerEnd.dx, start.dy),
+              ),
+              (
+                center: Offset(centerEnd.dx, centerEnd.dy),
+                startPoint: Offset(end.dx, centerEnd.dy),
+                endPoint: Offset(centerEnd.dx, end.dy),
+              ),
+              (
+                center: Offset(centerStart.dx, centerEnd.dy),
+                startPoint: Offset(start.dx, centerEnd.dy),
+                endPoint: Offset(centerStart.dx, end.dy),
+              ),
+              (
+                center: Offset(centerStart.dx, centerStart.dy),
+                startPoint: Offset(start.dx, centerStart.dy),
+                endPoint: Offset(centerStart.dx, start.dy),
+              ),
+            ]
+            : [
+              (
+                center: Offset(centerEnd.dx, centerStart.dy),
+                startPoint: Offset(centerEnd.dx, start.dy),
+                endPoint: Offset(end.dx, centerStart.dy),
+              ),
+              (
+                center: Offset(centerEnd.dx, centerEnd.dy),
+                startPoint: Offset(centerEnd.dx, end.dy),
+                endPoint: Offset(end.dx, centerEnd.dy),
+              ),
+              (
+                center: Offset(centerStart.dx, centerEnd.dy),
+                startPoint: Offset(centerStart.dx, end.dy),
+                endPoint: Offset(start.dx, centerEnd.dy),
+              ),
+              (
+                center: Offset(centerStart.dx, centerStart.dy),
+                startPoint: Offset(centerStart.dx, start.dy),
+                endPoint: Offset(start.dx, centerStart.dy),
+              ),
+            ];
+
+    for (final quarter in quarters) {
       points.addAll(
         _generateQuarterOval(
-          Offset(centerEnd.dx, centerStart.dy),
-          Offset(end.dx, centerStart.dy),
-          Offset(centerEnd.dx, start.dy),
-          paint,
-          canvasSize,
-        ),
-      );
-      points.addAll(
-        _generateQuarterOval(
-          Offset(centerEnd.dx, centerEnd.dy),
-          Offset(end.dx, centerEnd.dy),
-          Offset(centerEnd.dx, end.dy),
-          paint,
-          canvasSize,
-        ),
-      );
-      points.addAll(
-        _generateQuarterOval(
-          Offset(centerStart.dx, centerEnd.dy),
-          Offset(start.dx, centerEnd.dy),
-          Offset(centerStart.dx, end.dy),
-          paint,
-          canvasSize,
-        ),
-      );
-      points.addAll(
-        _generateQuarterOval(
-          Offset(centerStart.dx, centerStart.dy),
-          Offset(start.dx, centerStart.dy),
-          Offset(centerStart.dx, start.dy),
-          paint,
-          canvasSize,
-        ),
-      );
-    } else {
-      points.addAll(
-        _generateQuarterOval(
-          Offset(centerEnd.dx, centerStart.dy),
-          Offset(centerEnd.dx, start.dy),
-          Offset(end.dx, centerStart.dy),
-          paint,
-          canvasSize,
-        ),
-      );
-      points.addAll(
-        _generateQuarterOval(
-          Offset(centerEnd.dx, centerEnd.dy),
-          Offset(centerEnd.dx, end.dy),
-          Offset(end.dx, centerEnd.dy),
-          paint,
-          canvasSize,
-        ),
-      );
-      points.addAll(
-        _generateQuarterOval(
-          Offset(centerStart.dx, centerEnd.dy),
-          Offset(centerStart.dx, end.dy),
-          Offset(start.dx, centerEnd.dy),
-          paint,
-          canvasSize,
-        ),
-      );
-      points.addAll(
-        _generateQuarterOval(
-          Offset(centerStart.dx, centerStart.dy),
-          Offset(centerStart.dx, start.dy),
-          Offset(start.dx, centerStart.dy),
+          quarter.center,
+          quarter.startPoint,
+          quarter.endPoint,
           paint,
           canvasSize,
         ),
