@@ -46,7 +46,7 @@ class OvalGenerator extends BaseShapeDrawer {
       // 2ピクセル幅以下の矩形は塗りつぶし
       return _generateFilledRectangle(start, end, paint, canvasSize);
     } else if (strokeThickness <= 4) {
-      // 3-4ピクセル幅の楕円を描画
+      //
       return _generateSmallOvalShape(start, end, paint, canvasSize, isFilled);
     } else {
       // 通常サイズの楕円を描画
@@ -134,6 +134,132 @@ class OvalGenerator extends BaseShapeDrawer {
     final radiusY = (end.dy - start.dy).abs() / 2;
     final center = Offset((start.dx + end.dx) / 2, (start.dy + end.dy) / 2);
 
+    if (isFilled) {
+      return _generateFilledOval(center, radiusX, radiusY, paint, canvasSize);
+    }
+
+    // 楕円の輪郭を描画
+    // スタート位置を設定
+    final firstX = start.dx.floor();
+    final firstY = ((start.dy + end.dy) / 2).floor();
+    var currentX = firstX;
+    var currentY = firstY;
+
+    // 円の中心座標（doubleのまま）
+    final centerX = (start.dx + end.dx) / 2;
+    final centerY = (start.dy + end.dy) / 2;
+
+    while (true) {
+      addPoint(
+        points,
+        currentX.toDouble(),
+        currentY.toDouble(),
+        paint,
+        canvasSize,
+      );
+
+      // 次の候補点を評価
+      var bestDistance = double.infinity;
+      var nextX = currentX;
+      var nextY = currentY;
+
+      // 現在の位置に応じて候補方向を決定
+      final List<List<int>> directions;
+      if (currentY > centerY) {
+        // 中心より下にいる場合
+        if (currentX > centerX) {
+          // 右下にいる場合: 左、左下、下
+          directions = [
+            [-1, 0], // ←
+            [-1, 1], // ↙
+            [0, 1], // ↓
+          ];
+        } else {
+          // 左下にいる場合: 左、左上、上
+          directions = [
+            [-1, 0], // ←
+            [-1, -1], // ↖
+            [0, -1], // ↑
+          ];
+        }
+      } else {
+        // 中心より上にいる場合
+        if (currentX < centerX) {
+          // 左上にいる場合: 右、右上、上
+          directions = [
+            [1, 0], // →
+            [1, -1], // ↗
+            [0, -1], // ↑
+          ];
+        } else {
+          // 右上にいる場合: 右、右下、下
+          directions = [
+            [1, 0], // →
+            [1, 1], // ↘
+            [0, 1], // ↓
+          ];
+        }
+      }
+
+      // スタート位置が候補に含まれるかチェック
+      var containsStart = false;
+
+      for (final dir in directions) {
+        final newX = currentX + dir[0];
+        final newY = currentY + dir[1];
+
+        // スタート位置かどうかチェック
+        if (newX == firstX && newY == firstY) {
+          containsStart = true;
+          continue;
+        }
+
+        // キャンバスの範囲内かチェック
+        if (newX < 0 ||
+            newX >= canvasSize.width ||
+            newY < 0 ||
+            newY >= canvasSize.height) {
+          continue;
+        }
+
+        final dx = newX - centerX;
+        final dy = newY - centerY;
+        final normalizedX = dx / radiusX;
+        final normalizedY = dy / radiusY;
+        final distance =
+            (math.sqrt(normalizedX * normalizedX + normalizedY * normalizedY) -
+                    1.0)
+                .abs();
+
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          nextX = newX;
+          nextY = newY;
+        }
+      }
+
+      // スタート位置が候補に含まれていた場合は終了
+      if (containsStart) {
+        break;
+      }
+
+      currentX = nextX;
+      currentY = nextY;
+    }
+
+    return points;
+  }
+
+  /// 塗りつぶされた楕円を生成
+  List<DrawingPoint?> _generateFilledOval(
+    Offset center,
+    double radiusX,
+    double radiusY,
+    Paint paint,
+    Size canvasSize,
+  ) {
+    final points = <DrawingPoint?>[];
+
     final boundLeft = math.max(0, (center.dx - radiusX).floor());
     final boundRight = math.min(
       canvasSize.width.floor() - 1,
@@ -155,14 +281,8 @@ class OvalGenerator extends BaseShapeDrawer {
           normalizedX * normalizedX + normalizedY * normalizedY,
         );
 
-        if (isFilled) {
-          if (distance <= 1.0) {
-            addPoint(points, x.toDouble(), y.toDouble(), paint, canvasSize);
-          }
-        } else {
-          if ((distance - 1.0).abs() <= 0.05) {
-            addPoint(points, x.toDouble(), y.toDouble(), paint, canvasSize);
-          }
+        if (distance <= 1.0) {
+          addPoint(points, x.toDouble(), y.toDouble(), paint, canvasSize);
         }
       }
     }
