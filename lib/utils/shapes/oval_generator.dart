@@ -280,53 +280,87 @@ class OvalGenerator extends BaseShapeDrawer {
   ) {
     final points = <DrawingPoint?>[];
 
-    final center = Offset(
-      (start.dx + end.dx) / 2,
-      (start.dy + end.dy) / 2,
-    ); // 切り捨て、切り上げなし
     final centerStart = _getStartCenterPoint(start, end); // 切り捨て
     final centerEnd = _getEndCenterPoint(start, end); // 切り上げ
 
-    points.addAll(
-      _generateQuarterOval(
-        Offset(centerEnd.dx, centerStart.dy),
-        Offset(centerEnd.dx, start.dy),
-        Offset(end.dx, centerStart.dy),
-        paint,
-        canvasSize,
-      ),
-    );
-    points.addAll(
-      _generateQuarterOval(
-        Offset(centerEnd.dx, centerEnd.dy),
-        Offset(end.dx, centerEnd.dy),
-        Offset(centerEnd.dx, end.dy),
-        paint,
-        canvasSize,
-      ),
-    );
-    points.addAll(
-      _generateQuarterOval(
-        Offset(centerStart.dx, centerEnd.dy),
-        Offset(centerStart.dx, end.dy),
-        Offset(start.dx, centerEnd.dy),
-        paint,
-        canvasSize,
-      ),
-    );
-    points.addAll(
-      _generateQuarterOval(
-        Offset(centerStart.dx, centerStart.dy),
-        Offset(start.dx, centerStart.dy),
-        Offset(centerStart.dx, start.dy),
-        paint,
-        canvasSize,
-      ),
-    );
+    // 縦長かどうかを判定
+    final isVertical = (end.dy - start.dy).abs() > (end.dx - start.dx).abs();
 
-    // ここは後で消す
-    addPoint(points, centerStart.dx, centerStart.dy, paint, canvasSize);
-    addPoint(points, centerEnd.dx, centerEnd.dy, paint, canvasSize);
+    if (isVertical) {
+      points.addAll(
+        _generateQuarterOval(
+          Offset(centerEnd.dx, centerStart.dy),
+          Offset(end.dx, centerStart.dy),
+          Offset(centerEnd.dx, start.dy),
+          paint,
+          canvasSize,
+        ),
+      );
+      points.addAll(
+        _generateQuarterOval(
+          Offset(centerEnd.dx, centerEnd.dy),
+          Offset(end.dx, centerEnd.dy),
+          Offset(centerEnd.dx, end.dy),
+          paint,
+          canvasSize,
+        ),
+      );
+      points.addAll(
+        _generateQuarterOval(
+          Offset(centerStart.dx, centerEnd.dy),
+          Offset(start.dx, centerEnd.dy),
+          Offset(centerStart.dx, end.dy),
+          paint,
+          canvasSize,
+        ),
+      );
+      points.addAll(
+        _generateQuarterOval(
+          Offset(centerStart.dx, centerStart.dy),
+          Offset(start.dx, centerStart.dy),
+          Offset(centerStart.dx, start.dy),
+          paint,
+          canvasSize,
+        ),
+      );
+    } else {
+      points.addAll(
+        _generateQuarterOval(
+          Offset(centerEnd.dx, centerStart.dy),
+          Offset(centerEnd.dx, start.dy),
+          Offset(end.dx, centerStart.dy),
+          paint,
+          canvasSize,
+        ),
+      );
+      points.addAll(
+        _generateQuarterOval(
+          Offset(centerEnd.dx, centerEnd.dy),
+          Offset(centerEnd.dx, end.dy),
+          Offset(end.dx, centerEnd.dy),
+          paint,
+          canvasSize,
+        ),
+      );
+      points.addAll(
+        _generateQuarterOval(
+          Offset(centerStart.dx, centerEnd.dy),
+          Offset(centerStart.dx, end.dy),
+          Offset(start.dx, centerEnd.dy),
+          paint,
+          canvasSize,
+        ),
+      );
+      points.addAll(
+        _generateQuarterOval(
+          Offset(centerStart.dx, centerStart.dy),
+          Offset(centerStart.dx, start.dy),
+          Offset(start.dx, centerStart.dy),
+          paint,
+          canvasSize,
+        ),
+      );
+    }
 
     return points;
   }
